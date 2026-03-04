@@ -11,9 +11,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   TRAIT_CATEGORIES,
   DEFAULT_CHARACTER,
-  SKIN_COLORS,
-  HAIR_COLORS,
-  CLOTHING_COLORS,
   type CharacterState,
 } from "@/lib/traits"
 import {
@@ -32,13 +29,11 @@ import { cn } from "@/lib/utils"
 type AppStep = "customize" | "review" | "success"
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  skin: <Palette className="size-4" />,
-  face: <Smile className="size-4" />,
-  hair: <Scissors className="size-4" />,
-  cosmetics: <Star className="size-4" />,
-  top: <Shirt className="size-4" />,
-  bottom: <Shirt className="size-4" />,
-  shoes: <Shirt className="size-4" />,
+  background: <Palette className="size-4" />,
+  body: <Shirt className="size-4" />,
+  head: <Smile className="size-4" />,
+  accessory: <Star className="size-4" />,
+  noggles: <Scissors className="size-4" />,
 }
 
 function randomFromArray<T>(arr: T[]): T {
@@ -47,45 +42,34 @@ function randomFromArray<T>(arr: T[]): T {
 
 function getRandomCharacter(): CharacterState {
   return {
-    skinColor: randomFromArray(SKIN_COLORS),
-    face: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "face")!.options).id,
-    hair: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "hair")!.options).id,
-    hairColor: randomFromArray(HAIR_COLORS),
-    cosmetic: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "cosmetics")!.options).id,
-    top: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "top")!.options).id,
-    topColor: randomFromArray(CLOTHING_COLORS),
-    bottom: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "bottom")!.options).id,
-    bottomColor: randomFromArray(CLOTHING_COLORS),
-    shoes: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "shoes")!.options).id,
-    shoesColor: randomFromArray(CLOTHING_COLORS),
+    backgroundId: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "background")!.options).id,
+    bodyId: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "body")!.options).id,
+    headId: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "head")!.options).id,
+    accessoryId: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "accessory")!.options).id,
+    nogglesId: randomFromArray(TRAIT_CATEGORIES.find((c) => c.id === "noggles")!.options).id,
   }
 }
 
 export default function CharacterForge() {
   const [step, setStep] = useState<AppStep>("customize")
   const [character, setCharacter] = useState<CharacterState>(DEFAULT_CHARACTER)
-  const [activeCategory, setActiveCategory] = useState("hair")
+  const [activeCategory, setActiveCategory] = useState("background")
   const [isMinting, setIsMinting] = useState(false)
   const [txHash, setTxHash] = useState("")
 
   const handleTraitChange = useCallback((categoryId: string, traitId: string) => {
     setCharacter((prev) => {
       const keyMap: Record<string, keyof CharacterState> = {
-        face: "face",
-        hair: "hair",
-        cosmetics: "cosmetic",
-        top: "top",
-        bottom: "bottom",
-        shoes: "shoes",
+        background: "backgroundId",
+        body: "bodyId",
+        head: "headId",
+        accessory: "accessoryId",
+        noggles: "nogglesId",
       }
       const key = keyMap[categoryId]
       if (!key) return prev
       return { ...prev, [key]: traitId }
     })
-  }, [])
-
-  const handleColorChange = useCallback((colorKey: keyof CharacterState, color: string) => {
-    setCharacter((prev) => ({ ...prev, [colorKey]: color }))
   }, [])
 
   const handleRandomize = useCallback(() => {
@@ -96,12 +80,10 @@ export default function CharacterForge() {
     setCharacter(DEFAULT_CHARACTER)
   }, [])
 
-  const handleMint = useCallback(async () => {
+  const handleMint = useCallback(async (paymentTxHash: string) => {
     setIsMinting(true)
-    // Simulate gasless mint on Gnosis
     await new Promise((resolve) => setTimeout(resolve, 3000))
-    const fakeHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
-    setTxHash(fakeHash)
+    setTxHash(paymentTxHash)
     setIsMinting(false)
     setStep("success")
   }, [])
@@ -233,7 +215,6 @@ export default function CharacterForge() {
               activeCategory={activeCategory}
               character={character}
               onTraitChange={handleTraitChange}
-              onColorChange={handleColorChange}
             />
           </div>
         </div>

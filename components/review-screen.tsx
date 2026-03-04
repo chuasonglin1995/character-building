@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CharacterPreview } from "@/components/character-preview"
@@ -9,12 +10,14 @@ import {
   type CharacterState,
   type Rarity,
 } from "@/lib/traits"
-import { ArrowLeft, Sparkles, Check, Loader2 } from "lucide-react"
+import { circlesConfig, generatePaymentLink, getMintPriceCRC } from "@/lib/circles"
+import { usePaymentWatcher, type PaymentWatchStatus } from "@/hooks/use-payment-watcher"
+import { ArrowLeft, Sparkles, Check, Loader2, ExternalLink, PlayCircle, PauseCircle } from "lucide-react"
 
 interface ReviewScreenProps {
   character: CharacterState
   onBack: () => void
-  onMint: () => void
+  onMint: (paymentTxHash: string) => void
   isMinting: boolean
 }
 
@@ -23,12 +26,11 @@ function getSelectedTraitName(categoryId: string, character: CharacterState): { 
   if (!category) return null
 
   const keyMap: Record<string, keyof CharacterState> = {
-    face: "face",
-    hair: "hair",
-    cosmetics: "cosmetic",
-    top: "top",
-    bottom: "bottom",
-    shoes: "shoes",
+    background: "backgroundId",
+    body: "bodyId",
+    head: "headId",
+    accessory: "accessoryId",
+    noggles: "nogglesId",
   }
 
   const traitKey = keyMap[categoryId]
@@ -40,16 +42,29 @@ function getSelectedTraitName(categoryId: string, character: CharacterState): { 
 }
 
 function getColorSwatch(categoryId: string, character: CharacterState): string | null {
-  const colorMap: Record<string, keyof CharacterState> = {
-    skin: "skinColor",
-    hair: "hairColor",
-    top: "topColor",
-    bottom: "bottomColor",
-    shoes: "shoesColor",
-  }
+  // Nouns-style traits are pre-colored SVGs; no separate color state.
+  return null
+}
 
-  const key = colorMap[categoryId]
-  return key ? character[key] : null
+function makePaymentDataValue() {
+  const random = Math.random().toString(36).slice(2, 10)
+  const timestamp = Date.now().toString(36)
+  return `character-mint:${timestamp}:${random}`
+}
+
+function getStatusLabel(status: PaymentWatchStatus) {
+  switch (status) {
+    case "idle":
+      return "Idle"
+    case "waiting":
+      return "Waiting"
+    case "confirmed":
+      return "Confirmed"
+    case "error":
+      return "Error"
+    default:
+      return status
+  }
 }
 
 export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScreenProps) {
@@ -61,7 +76,7 @@ export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScr
     Legendary: 4,
   }
 
-  const traitCategories = ["face", "hair", "cosmetics", "top", "bottom", "shoes"]
+  const traitCategories = ["background", "body", "head", "accessory", "noggles"]
   const traits = traitCategories
     .map((id) => ({ id, ...(getSelectedTraitName(id, character) || { name: "None", rarity: "Common" as Rarity }) }))
     .filter((t) => t.name !== "None")
@@ -72,6 +87,26 @@ export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScr
 
   const overallRarity: Rarity =
     avgRarity >= 3.5 ? "Legendary" : avgRarity >= 2.5 ? "Rare" : avgRarity >= 1.5 ? "Uncommon" : "Common"
+
+  const [watching, setWatching] = useState(false)
+  const [dataValue] = useState(() => makePaymentDataValue())
+  const recipient = circlesConfig.defaultRecipientAddress
+  const amountCRC = getMintPriceCRC()
+  const paymentLink = useMemo(
+    () => generatePaymentLink(recipient, amountCRC, dataValue),
+    [recipient, amountCRC, dataValue],
+  )
+
+  const { status: paymentStatus, payment, error: paymentError } = usePaymentWatcher({
+    enabled: watching && Boolean(paymentLink),
+    dataValue,
+    minAmountCRC: amountCRC,
+    recipientAddress: recipient,
+  })
+
+  const canMint = paymentStatus === "confirmed" && Boolean(payment?.transactionHash)
+  const dataPreview =
+    dataValue.length > 24 ? `${dataValue.slice(0, 20)}…${dataValue.slice(-4)}` : dataValue
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
@@ -102,7 +137,7 @@ export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScr
           <div>
             <h2 className="text-2xl font-bold text-foreground text-balance">Review Your Character</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Confirm your trait selections before minting your unique NFT on Gnosis Chain.
+              Confirm your trait selections and Circles payment before creating your character.
             </p>
           </div>
 
@@ -151,6 +186,75 @@ export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScr
             </span>
           </div>
 
+          <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col items-start gap-0.5">
+                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">
+                  Circles payment required
+                </span>
+                <span className="text-sm text-foreground">
+                  Send {amountCRC} CRC to this app via Gnosis App to unlock creation.
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Data (used to match your payment):{" "}
+                  <span className="font-mono break-all">{dataPreview}</span>
+                </span>
+              </div>
+              <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                {getStatusLabel(paymentStatus)}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1"
+                asChild
+                disabled={!paymentLink}
+              >
+                <a href={paymentLink} target="_blank" rel="noreferrer">
+                  <ExternalLink className="size-3.5" />
+                  Open in Gnosis App
+                </a>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={watching ? "outline" : "secondary"}
+                className="gap-1"
+                disabled={!paymentLink}
+                onClick={() => setWatching((prev) => !prev)}
+              >
+                {watching ? (
+                  <>
+                    <PauseCircle className="size-3.5" />
+                    Stop monitoring
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="size-3.5" />
+                    Start monitoring
+                  </>
+                )}
+              </Button>
+            </div>
+            {paymentStatus === "waiting" && (
+              <p className="text-xs text-muted-foreground">
+                Waiting for a {amountCRC} CRC payment with this data to arrive at the recipient address.
+              </p>
+            )}
+            {paymentStatus === "confirmed" && payment?.transactionHash && (
+              <p className="text-xs text-emerald-600">
+                Circles payment detected on-chain. You can now create your character.
+              </p>
+            )}
+            {paymentStatus === "error" && paymentError && (
+              <p className="text-xs text-destructive">
+                Payment check failed: {paymentError}
+              </p>
+            )}
+          </div>
+
           {/* Action buttons */}
           <div className="flex gap-3">
             <Button variant="outline" onClick={onBack} className="gap-2">
@@ -158,27 +262,31 @@ export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScr
               Edit
             </Button>
             <Button
-              onClick={onMint}
-              disabled={isMinting}
+              onClick={() => {
+                if (payment?.transactionHash && canMint) {
+                  onMint(payment.transactionHash)
+                }
+              }}
+              disabled={isMinting || !canMint}
               className="flex-1 gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
               size="lg"
             >
               {isMinting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Minting...
+                  Creating...
                 </>
               ) : (
                 <>
                   <Sparkles className="size-4" />
-                  Mint NFT (Gasless)
+                  Create after 1 CRC payment
                 </>
               )}
             </Button>
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Gasless mint on Gnosis Chain. No wallet fees required.
+            This app creates your character after a 1 CRC Circles payment. No separate NFT mint transaction is sent.
           </p>
         </div>
       </div>

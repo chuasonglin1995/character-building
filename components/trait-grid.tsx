@@ -37,9 +37,13 @@ export function TraitGrid({ options, selectedId, onSelect }: TraitGridProps) {
               : "border-border bg-card"
           )}
         >
-          {/* Trait icon placeholder */}
-          <div className="flex size-10 items-center justify-center rounded-md bg-muted text-xs font-mono text-muted-foreground">
-            {option.preview.slice(0, 3).toUpperCase()}
+          {/* Trait thumbnail */}
+          <div className="flex size-10 items-center justify-center rounded-md bg-muted overflow-hidden">
+            <img
+              src={option.preview}
+              alt={option.name}
+              className="h-full w-full object-contain"
+            />
           </div>
           <div className="flex items-center gap-1">
             <RarityDot rarity={option.rarity} />
