@@ -1,0 +1,71 @@
+# Build simple apps with Circles and Gnosis App
+
+This guide is for community leaders and non-developers who want to build/vibecode a simple app that uses Circles payments through Gnosis App.
+
+The example is a  simple page where people can:
+
+1. Enter a payment (recipient + amount + note)
+2. Open the payment in Gnosis App (or scan QR)
+3. See payment confirmation in your app
+
+The concept is simple. Generate gnosis app payment link, have the user execute the transaction using their Gnosis Wallet, try to look for the respective on-chain transaction "data" to change your app state according to your needs.
+
+{% hint style="success" %}
+This is what we will populate in our apps to trigger a gnosis app transaction:\
+<https://app.gnosis.io/transfer/\\><recipient>/crc?data=\<anyData>\&amount=\<amount>
+{% endhint %}
+
+Under the hood, this starter kit utilises Circles RPC to match the data and confirm when the right payment appears.
+
+### 1. Run the starter kit
+
+{% embed url="<https://github.com/aboutcircles/circles-gnosisApp-starter-kit>" %}
+
+From the repo folder, run:
+
+```
+npm install 
+npm run dev
+```
+
+Then open: <http://localhost:3000>
+
+### 2. Try one real payment flow
+
+On the page:
+
+1. Recipient address → who should receive CRC&#x20;
+
+{% hint style="info" %}
+Create a new Circles Org account for the receiving account. Orgs are best suited for accepting payments from Circles Users. Learn more about Circles Orgs [here](https://docs.aboutcircles.com/circles-sdk/circles-avatars/organization-avatars).
+{% endhint %}
+
+1. Amount (CRC) → how much
+2. Description → your payment reference (example: membership-payment)
+
+Then:
+
+* Click Open in Gnosis app (or Show QR)
+* In the app, click Start monitoring
+* Complete payment in Gnosis App
+* Wait for transaction to be confirmed
+
+{% hint style="info" %}
+Tip: always use a unique description(data) each time (like an order ID or member ID). This is what will be used to identify the payment.
+{% endhint %}
+
+### 3. Tailor it to your use (vibe-coding style)
+
+You can further turn this into:
+
+* Membership check-in
+* Event contribution page
+* Donation/ticket page
+* Any other idea
+
+### 4. Link your app from your Org profile
+
+1. Create your own Circles Org account in the [Circles app](https://app.aboutcircles.com/register/register-organization)
+2. Open Edit profile / description
+3. Add a short CTA + your app URL
+4. Share with your community
