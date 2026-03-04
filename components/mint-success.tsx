@@ -1,10 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { CharacterPreview } from "@/components/character-preview"
 import type { CharacterState } from "@/lib/traits"
+import { getGnosisExplorerTxUrl } from "@/lib/circles"
 import { ExternalLink, Share2, Copy, Check } from "lucide-react"
-import { useState } from "react"
 
 interface MintSuccessProps {
   character: CharacterState
@@ -14,7 +15,7 @@ interface MintSuccessProps {
 
 export function MintSuccess({ character, txHash, onCreateAnother }: MintSuccessProps) {
   const [copied, setCopied] = useState(false)
-  const gnosisExplorerUrl = `https://gnosisscan.io/tx/${txHash}`
+  const gnosisExplorerUrl = getGnosisExplorerTxUrl(txHash)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(gnosisExplorerUrl)
@@ -25,8 +26,8 @@ export function MintSuccess({ character, txHash, onCreateAnother }: MintSuccessP
   const handleShare = async () => {
     if (navigator.share) {
       await navigator.share({
-        title: "My Character Forge NFT",
-        text: "Check out the character I just minted on Character Forge!",
+        title: "My Character Forge character",
+        text: "Check out the character I just created in Character Forge using a Circles payment on Gnosis Chain.",
         url: gnosisExplorerUrl,
       })
     }
@@ -44,9 +45,9 @@ export function MintSuccess({ character, txHash, onCreateAnother }: MintSuccessP
         </div>
 
         <div>
-          <h2 className="text-3xl font-bold text-foreground text-balance">Successfully Minted</h2>
+          <h2 className="text-3xl font-bold text-foreground text-balance">Character Created</h2>
           <p className="mt-2 text-muted-foreground">
-            Your unique character NFT is now live on Gnosis Chain.
+            Your character is now saved in Character Forge. The link below shows the Circles CRC payment used to create it on Gnosis Chain (not a separate NFT mint transaction).
           </p>
         </div>
 
