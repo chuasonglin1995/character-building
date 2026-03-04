@@ -25,8 +25,10 @@ import {
   Star,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ProfileAddressSection } from "@/components/profile-address-section"
+import { InventoryView } from "@/components/inventory-view"
 
-type AppStep = "customize" | "review" | "success"
+type AppStep = "customize" | "review" | "success" | "inventory"
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   background: <Palette className="size-4" />,
@@ -56,6 +58,7 @@ export default function CharacterForge() {
   const [activeCategory, setActiveCategory] = useState("background")
   const [isMinting, setIsMinting] = useState(false)
   const [txHash, setTxHash] = useState("")
+  const [ownerAddress, setOwnerAddress] = useState("")
 
   const handleTraitChange = useCallback((categoryId: string, traitId: string) => {
     setCharacter((prev) => {
@@ -80,10 +83,11 @@ export default function CharacterForge() {
     setCharacter(DEFAULT_CHARACTER)
   }, [])
 
-  const handleMint = useCallback(async (paymentTxHash: string) => {
+  const handleMint = useCallback(async (paymentTxHash: string, ownerAddress: string) => {
     setIsMinting(true)
     await new Promise((resolve) => setTimeout(resolve, 3000))
     setTxHash(paymentTxHash)
+    setOwnerAddress(ownerAddress)
     setIsMinting(false)
     setStep("success")
   }, [])
@@ -92,7 +96,14 @@ export default function CharacterForge() {
     setCharacter(DEFAULT_CHARACTER)
     setStep("customize")
     setTxHash("")
+    setOwnerAddress("")
   }, [])
+
+  if (step === "inventory") {
+    return (
+      <InventoryView onBack={() => setStep("customize")} />
+    )
+  }
 
   if (step === "review") {
     return (
@@ -110,6 +121,7 @@ export default function CharacterForge() {
       <MintSuccess
         character={character}
         txHash={txHash}
+        ownerAddress={ownerAddress}
         onCreateAnother={handleCreateAnother}
       />
     )
@@ -125,10 +137,12 @@ export default function CharacterForge() {
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Character Forge</h1>
             <p className="text-sm text-muted-foreground">Customize. Create. Mint.</p>
           </div>
-          <Badge variant="outline" className="border-primary/40 text-primary gap-1.5">
-            <span className="size-2 rounded-full bg-primary animate-pulse" />
-            Gnosis Chain
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-primary/40 text-primary gap-1.5">
+              <span className="size-2 rounded-full bg-primary animate-pulse" />
+              Gnosis Chain
+            </Badge>
+          </div>
         </div>
 
         {/* Character display */}
@@ -177,6 +191,10 @@ export default function CharacterForge() {
 
       {/* Right side: Trait panel */}
       <aside className="flex w-full flex-col border-l border-border bg-card lg:w-[380px] xl:w-[420px]">
+        {/* Profile address + inventory */}
+        <div className="border-b border-border p-4">
+          <ProfileAddressSection onViewInventory={() => setStep("inventory")} />
+        </div>
         {/* Category tabs (vertical on desktop) */}
         <div className="flex lg:flex-col lg:h-full">
           {/* Category list */}

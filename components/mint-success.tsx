@@ -10,10 +10,11 @@ import { ExternalLink, Share2, Copy, Check } from "lucide-react"
 interface MintSuccessProps {
   character: CharacterState
   txHash: string
+  ownerAddress: string
   onCreateAnother: () => void
 }
 
-export function MintSuccess({ character, txHash, onCreateAnother }: MintSuccessProps) {
+export function MintSuccess({ character, txHash, ownerAddress, onCreateAnother }: MintSuccessProps) {
   const [copied, setCopied] = useState(false)
   const gnosisExplorerUrl = getGnosisExplorerTxUrl(txHash)
 
@@ -49,6 +50,11 @@ export function MintSuccess({ character, txHash, onCreateAnother }: MintSuccessP
           <p className="mt-2 text-muted-foreground">
             Your character is now saved in Character Forge. The link below shows the Circles CRC payment used to create it on Gnosis Chain (not a separate NFT mint transaction).
           </p>
+          {ownerAddress && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Owned by: <span className="font-mono">{ownerAddress.slice(0, 10)}…{ownerAddress.slice(-8)}</span>
+            </p>
+          )}
         </div>
 
         {/* Character card */}

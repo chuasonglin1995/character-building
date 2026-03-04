@@ -17,7 +17,7 @@ import { ArrowLeft, Sparkles, Check, Loader2, ExternalLink, PlayCircle, PauseCir
 interface ReviewScreenProps {
   character: CharacterState
   onBack: () => void
-  onMint: (paymentTxHash: string) => void
+  onMint: (paymentTxHash: string, ownerAddress: string) => void
   isMinting: boolean
 }
 
@@ -46,10 +46,9 @@ function getColorSwatch(categoryId: string, character: CharacterState): string |
   return null
 }
 
-function makePaymentDataValue() {
-  const random = Math.random().toString(36).slice(2, 10)
-  const timestamp = Date.now().toString(36)
-  return `character-mint:${timestamp}:${random}`
+function makePaymentDataValue(uniqueSuffix?: string) {
+  const suffix = uniqueSuffix ?? `${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`
+  return `character-mint:${suffix}`
 }
 
 function getStatusLabel(status: PaymentWatchStatus) {
@@ -89,7 +88,11 @@ export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScr
     avgRarity >= 3.5 ? "Legendary" : avgRarity >= 2.5 ? "Rare" : avgRarity >= 1.5 ? "Uncommon" : "Common"
 
   const [watching, setWatching] = useState(false)
-  const [dataValue] = useState(() => makePaymentDataValue())
+  const [uniqueSuffix] = useState(() => `${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`)
+  const dataValue = useMemo(
+    () => makePaymentDataValue(uniqueSuffix),
+    [uniqueSuffix],
+  )
   const recipient = circlesConfig.defaultRecipientAddress
   const amountCRC = getMintPriceCRC()
   const paymentLink = useMemo(
@@ -263,8 +266,8 @@ export function ReviewScreen({ character, onBack, onMint, isMinting }: ReviewScr
             </Button>
             <Button
               onClick={() => {
-                if (payment?.transactionHash && canMint) {
-                  onMint(payment.transactionHash)
+                if (payment?.transactionHash && payment?.from && canMint) {
+                  onMint(payment.transactionHash, payment.from)
                 }
               }}
               disabled={isMinting || !canMint}
