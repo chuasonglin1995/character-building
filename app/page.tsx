@@ -59,6 +59,7 @@ export default function CharacterForge() {
   const [isMinting, setIsMinting] = useState(false)
   const [txHash, setTxHash] = useState("")
   const [ownerAddress, setOwnerAddress] = useState("")
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleTraitChange = useCallback((categoryId: string, traitId: string) => {
     setCharacter((prev) => {
@@ -83,20 +84,41 @@ export default function CharacterForge() {
     setCharacter(DEFAULT_CHARACTER)
   }, [])
 
-  const handleMint = useCallback(async (paymentTxHash: string, ownerAddress: string) => {
+  const handleMint = useCallback(async (paymentTxHash: string, ownerAddr: string) => {
     setIsMinting(true)
+    setSaveError(null)
     await new Promise((resolve) => setTimeout(resolve, 3000))
     setTxHash(paymentTxHash)
-    setOwnerAddress(ownerAddress)
+    setOwnerAddress(ownerAddr)
+
+    try {
+      const res = await fetch("/api/characters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerAddress: ownerAddr,
+          character: character,
+          paymentTxHash: paymentTxHash,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error ?? "Failed to save character to inventory")
+      }
+    } catch {
+      setSaveError("Failed to save character to inventory")
+    }
+
     setIsMinting(false)
     setStep("success")
-  }, [])
+  }, [character])
 
   const handleCreateAnother = useCallback(() => {
     setCharacter(DEFAULT_CHARACTER)
     setStep("customize")
     setTxHash("")
     setOwnerAddress("")
+    setSaveError(null)
   }, [])
 
   if (step === "inventory") {
@@ -122,6 +144,7 @@ export default function CharacterForge() {
         character={character}
         txHash={txHash}
         ownerAddress={ownerAddress}
+        saveError={saveError}
         onCreateAnother={handleCreateAnother}
       />
     )

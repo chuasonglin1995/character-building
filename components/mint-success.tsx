@@ -11,10 +11,11 @@ interface MintSuccessProps {
   character: CharacterState
   txHash: string
   ownerAddress: string
+  saveError?: string | null
   onCreateAnother: () => void
 }
 
-export function MintSuccess({ character, txHash, ownerAddress, onCreateAnother }: MintSuccessProps) {
+export function MintSuccess({ character, txHash, ownerAddress, saveError, onCreateAnother }: MintSuccessProps) {
   const [copied, setCopied] = useState(false)
   const gnosisExplorerUrl = getGnosisExplorerTxUrl(txHash)
 
@@ -53,6 +54,11 @@ export function MintSuccess({ character, txHash, ownerAddress, onCreateAnother }
           {ownerAddress && (
             <p className="mt-1 text-sm text-muted-foreground">
               Owned by: <span className="font-mono">{ownerAddress.slice(0, 10)}…{ownerAddress.slice(-8)}</span>
+            </p>
+          )}
+          {saveError && (
+            <p className="mt-1 text-sm text-amber-600">
+              {saveError}
             </p>
           )}
         </div>
