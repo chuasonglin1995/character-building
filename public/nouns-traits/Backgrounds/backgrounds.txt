@@ -1,0 +1,2 @@
+0: Cool - #d5d7e1
+1: Warm - #e1d7d5
