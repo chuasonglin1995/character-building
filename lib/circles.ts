@@ -1,4 +1,5 @@
 const DEFAULT_CIRCLES_RPC_URL = "https://staging.circlesubi.network/"
+const DEFAULT_CIRCLES_V2_RPC_URL = "https://rpc.aboutcircles.com/"
 const DEFAULT_RECIPIENT_ADDRESS = "0x7B8a5a4673fcd082b742304032eA49D6bC6e01f5"
 const DEFAULT_MINT_PRICE_CRC = 1
 const DEFAULT_GNOSIS_EXPLORER_BASE_URL = "https://gnosisscan.io"
@@ -16,6 +17,7 @@ export type CirclesTransferEvent = {
 
 export const circlesConfig = {
   rpcUrl: process.env.NEXT_PUBLIC_CIRCLES_RPC_URL || DEFAULT_CIRCLES_RPC_URL,
+  v2RpcUrl: process.env.NEXT_PUBLIC_CIRCLES_V2_RPC_URL || DEFAULT_CIRCLES_V2_RPC_URL,
   defaultRecipientAddress:
     process.env.NEXT_PUBLIC_DEFAULT_RECIPIENT_ADDRESS ||
     process.env.NEXT_PUBLIC_GATEWAY_ADDRESS ||
@@ -38,6 +40,80 @@ export function getGnosisExplorerTxUrl(txHash: string): string {
   const base = process.env.NEXT_PUBLIC_GNOSIS_EXPLORER_BASE_URL || DEFAULT_GNOSIS_EXPLORER_BASE_URL
   const trimmedBase = base.replace(/\/+$/, "")
   return `${trimmedBase}/tx/${txHash}`
+}
+
+type BigIntString = string
+
+export type CirclesV2TransferPathStep = {
+  From: string
+  To: string
+  TokenOwner: string
+  Value: BigIntString
+}
+
+export type CirclesV2FindPathResponse = {
+  MaxFlow: BigIntString
+  Transfers: CirclesV2TransferPathStep[]
+}
+
+type CirclesV2FindPathRpcResult = {
+  jsonrpc: "2.0"
+  id: number
+  result?: CirclesV2FindPathResponse
+  error?: {
+    code: number
+    message: string
+    data?: unknown
+  }
+}
+
+type CirclesQueryResultRow = unknown[]
+
+type CirclesQueryResult = {
+  columns: string[]
+  rows: CirclesQueryResultRow[]
+}
+
+export async function circlesV2FindPath(
+  source: string,
+  sink: string,
+  targetFlow: BigIntString,
+): Promise<CirclesV2FindPathResponse> {
+  const body = {
+    jsonrpc: "2.0" as const,
+    id: 1,
+    method: "circlesV2_findPath",
+    params: [
+      {
+        Source: source,
+        Sink: sink,
+        TargetFlow: targetFlow,
+      },
+    ],
+  }
+
+  const response = await fetch(circlesConfig.v2RpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`circlesV2_findPath failed: ${response.status} ${text}`)
+  }
+
+  const payload = (await response.json()) as CirclesV2FindPathRpcResult
+
+  if (payload.error) {
+    throw new Error(payload.error.message || "circlesV2_findPath returned an error")
+  }
+
+  if (!payload.result) {
+    throw new Error("circlesV2_findPath returned no result")
+  }
+
+  return payload.result
 }
 
 interface QueryOptions {
@@ -70,6 +146,76 @@ function mapTransferEvents(events: TransferDataEventPayload[] = []): CirclesTran
       logIndex: String(values.logIndex ?? ""),
     }
   })
+}
+
+export async function hasDirectTrust(truster: string, trustee: string): Promise<boolean> {
+  const normalizedTruster = normalizeAddress(truster)
+  const normalizedTrustee = normalizeAddress(trustee)
+
+  if (!normalizedTruster || !normalizedTrustee) {
+    return false
+  }
+
+  const body = {
+    jsonrpc: "2.0" as const,
+    id: 1,
+    method: "circles_query",
+    params: [
+      {
+        Namespace: "V_CrcV2",
+        Table: "TrustRelations",
+        Columns: ["truster", "trustee", "expiryTime"],
+        Filter: [
+          {
+            Type: "Conjunction",
+            ConjunctionType: "And",
+            Predicates: [
+              {
+                Type: "FilterPredicate",
+                FilterType: "Equals",
+                Column: "truster",
+                Value: normalizedTruster,
+              },
+              {
+                Type: "FilterPredicate",
+                FilterType: "Equals",
+                Column: "trustee",
+                Value: normalizedTrustee,
+              },
+            ],
+          },
+        ],
+        Limit: 1,
+      },
+    ],
+  }
+
+  const response = await fetch(circlesConfig.v2RpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`circles_query TrustRelations failed: ${response.status} ${text}`)
+  }
+
+  const payload = (await response.json()) as {
+    result?: CirclesQueryResult
+    error?: { message?: string }
+  }
+
+  if (payload.error) {
+    throw new Error(payload.error.message || "circles_query TrustRelations returned an error")
+  }
+
+  const result = payload.result
+  if (!result || !Array.isArray(result.rows)) {
+    return false
+  }
+
+  return result.rows.length > 0
 }
 
 async function circlesEventsQuery(
